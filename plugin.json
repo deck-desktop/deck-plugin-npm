@@ -1,0 +1,8 @@
+{
+  "id": "npm",
+  "name": "Scripts",
+  "description": "Run a package.json script, watch its output, and stop or restart it from the footer.",
+  "icon": "Package",
+  "version": "1.0.0",
+  "minDeck": "0.11.0"
+}
