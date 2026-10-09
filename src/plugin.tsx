@@ -570,3 +570,6 @@ export function commands() {
 
 /** The same view as a pane in the Terminals split tree, for keeping a server's output in place. */
 export const PaneView = Panel;
+
+/** Called by Deck before a reload re-imports this plugin, so the old copy stops taking MCP commands. */
+export const dispose = store.dispose;

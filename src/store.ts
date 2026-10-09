@@ -43,10 +43,22 @@ let lineSeq = 0;
 
 /** A snapshot for useSyncExternalStore. Rebuilt on change so identity comparison works. */
 let snapshot: Run[] = [];
+let publishTimer: ReturnType<typeof setTimeout> | undefined;
+/**
+ * Tell the panel something changed, at most ten times a second.
+ *
+ * Called per output line, and each call re-rendered the whole log (up to MAX_LOG rows): a chatty
+ * process printing hundreds of lines a second kept the main thread busy for as long as it lasted.
+ * A tenth of a second is still live to read, and a burst of any size costs ten renders a second.
+ */
 const publish = () => {
-  snapshot = [...runs.values()];
-  subs.forEach((f) => f());
-  publishState();
+  if (publishTimer) return;
+  publishTimer = setTimeout(() => {
+    publishTimer = undefined;
+    snapshot = [...runs.values()];
+    subs.forEach((f) => f());
+    publishState();
+  }, 100);
 };
 
 /**
@@ -182,7 +194,7 @@ export function dismiss(id: string) {
  * Commands from the MCP tools, through Deck's HTTP API and a `plugin-command` event. The event is
  * broadcast to every plugin, so the name check is required.
  */
-void listen<{ plugin: string; op: string; args: Record<string, unknown> }>("plugin-command", (e) => {
+const unCommand = listen<{ plugin: string; op: string; args: Record<string, unknown> }>("plugin-command", (e) => {
   const { plugin, op, args } = e.payload;
   if (plugin !== "npm") return;
   const id = typeof args?.id === "string" ? args.id : "";
@@ -201,3 +213,10 @@ void listen<{ plugin: string; op: string; args: Record<string, unknown> }>("plug
     case "restart": void restart(id); break;
   }
 });
+
+/** Stop listening for MCP commands. The plugin's `dispose` calls this before Deck re-imports it,
+ *  or one MCP command would start a run in every copy of the plugin a reload left behind. */
+export function dispose() {
+  void unCommand.then((un) => un()).catch(() => {});
+  clearTimeout(publishTimer);
+}
