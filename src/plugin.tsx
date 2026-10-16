@@ -129,7 +129,7 @@ function paneInfo(l: Layout | null, id: string): { wsId: string; label: string }
 async function findPaneRuns(l: Layout | null): Promise<PaneRun[]> {
   let procs: PaneProcs = {};
   try {
-    const t = await configRead("term-procs");
+    const t = await configRead("state/term-procs");
     procs = t.trim() ? (JSON.parse(t) as PaneProcs) : {};
   } catch { return []; }
   const out: PaneRun[] = [];
@@ -188,10 +188,10 @@ function jumpToPane(paneId: string) {
  * "Terminate batch job (Y/N)?" and the retyped command answers it instead — PowerShell, Deck's
  * default shell, runs the managers' .ps1 shims and never asks.
  */
-function paneStop(r: PaneRun) { void termWrite(r.paneId, "\x03").catch(() => {}); }
+function paneStop(r: PaneRun) { void termWrite(r.paneId, "\x03").catch((e) => console.warn("[npm] stop failed", e)); }
 function paneRestart(r: PaneRun) {
   paneStop(r);
-  setTimeout(() => { void termWrite(r.paneId, `${typedCommand(r.pm, r.script)}\r`).catch(() => {}); }, 1200);
+  setTimeout(() => { void termWrite(r.paneId, `${typedCommand(r.pm, r.script)}\r`).catch((e) => console.warn("[npm] restart failed", e)); }, 1200);
 }
 
 // ---- the picker -------------------------------------------------------------------------------
@@ -386,7 +386,7 @@ export function Panel() {
         ))}
         <div className="flex-1" />
         {active?.urls.map((u) => (
-          <button key={u} onClick={() => void openExternal(u).catch(() => {})} title={`Open ${u}`}
+          <button key={u} onClick={() => void openExternal(u).catch((e) => console.warn("[npm] open url failed", e))} title={`Open ${u}`}
             className="flex flex-none items-center gap-1 rounded px-1.5 py-1 font-mono text-[10.5px] text-sky-300 hover:bg-white/10">
             {u.replace(/^https?:\/\//, "").replace(/\/$/, "")}
             <ExternalLink size={10} />

@@ -76,7 +76,7 @@ export function register(server: McpServer, deck: DeckMcp) {
 
   /** Terminal panes running a script, from Deck's process sweep, with the same matcher the UI uses. */
   async function paneRuns(): Promise<AnyRun[]> {
-    const procs = readJson<PaneProcs>("term-procs", {});
+    const procs = readJson<PaneProcs>("state/term-procs", {});
     const hits = Object.entries(procs)
       .map(([id, rows]) => ({ id, run: rows.map(scriptRun).find(Boolean) }))
       .filter((h): h is { id: string; run: { pm: Manager; script: string } } => !!h.run);

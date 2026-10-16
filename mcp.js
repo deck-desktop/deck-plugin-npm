@@ -192,7 +192,7 @@ function register(server, deck) {
   const { z, ok, readJson, deckApi, apiErr } = deck;
   const pluginRuns = () => readJson("plugin-npm-runs", { runs: [] }).runs ?? [];
   async function paneRuns() {
-    const procs = readJson("term-procs", {});
+    const procs = readJson("state/term-procs", {});
     const hits = Object.entries(procs).map(([id, rows]) => ({ id, run: rows.map(scriptRun).find(Boolean) })).filter((h) => !!h.run);
     if (!hits.length) return [];
     let panes = [];

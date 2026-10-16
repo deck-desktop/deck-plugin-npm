@@ -83,13 +83,13 @@ function publishState() {
         log: r.log.slice(-STATE_LOG_LINES).map((l) => ({ ts: l.ts, kind: l.kind, text: l.text })),
       })),
     };
-    void configWrite(STATE_KEY, JSON.stringify(payload)).catch(() => {});
+    void configWrite(STATE_KEY, JSON.stringify(payload)).catch((e) => console.warn("[npm] run state save failed", e));
   }, 500);
 }
 
 // A fresh webview has no runs and the file still holds the last session's; an agent reading it
 // would report servers that died with the previous window.
-void configWrite(STATE_KEY, JSON.stringify({ runs: [] })).catch(() => {});
+void configWrite(STATE_KEY, JSON.stringify({ runs: [] })).catch((e) => console.warn("[npm] run state save failed", e));
 
 export const subscribe = (fn: () => void) => { subs.add(fn); return () => { subs.delete(fn); }; };
 export const getRuns = () => snapshot;
@@ -152,7 +152,7 @@ export function stop(id: string) {
   if (!run || run.status === "ended") return;
   run.status = "stopping";
   publish();
-  void procKill(id).catch(() => {});
+  void procKill(id).catch((e) => console.warn("[npm] stop failed", e));
 }
 
 /**
