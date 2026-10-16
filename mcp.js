@@ -1,8 +1,8 @@
-// plugins/npm/src/mcp.ts
+// src/mcp.ts
 import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 
-// plugins/npm/src/detect.ts
+// src/detect.ts
 function parsePackage(json) {
   let pkg;
   try {
@@ -148,7 +148,7 @@ function shouldDescend(name) {
   return !name.startsWith(".") && !SKIP_DIRS.has(name);
 }
 
-// plugins/npm/src/mcp.ts
+// src/mcp.ts
 function lockfilesUp(dir) {
   const out = [];
   for (let d = dir, i = 0; i < 12; i++) {
