@@ -6,6 +6,7 @@
 // its log.
 import { procStream, procKill, configWrite } from "../shim/bridge.js";
 import { listen } from "@tauri-apps/api/event";
+import { notify, dismissNotification } from "../shim/ui.js";
 import { runCommand, stripAnsi, localUrls, type Manager } from "./detect.js";
 
 /** One line in the log view. */
@@ -117,6 +118,10 @@ function wire() {
   return wired;
 }
 
+/** A run's failure card, posted when it ends without being stopped. */
+const exitKey = (id: string) => `exit:${id}`;
+const folder = (cwd: string) => cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd;
+
 /** Start a script and stream it. Resolves with the run id once it is spawned. */
 export async function start(cwd: string, pkg: string, script: string, pm: Manager): Promise<string> {
   await wire();
@@ -130,15 +135,23 @@ export async function start(cwd: string, pkg: string, script: string, pm: Manage
   // Not awaited: this resolves when the script EXITS, which for a dev server is the session.
   void procStream(id, program, args, cwd)
     .then((r) => {
+      // Read before it is overwritten: "stopping" means stop() was called, even if the script
+      // ended on its own before the kill landed.
+      const asked = r.cancelled || run.status === "stopping";
       run.status = "ended";
       run.code = r.cancelled ? null : r.code;
       append(run, r.cancelled ? "stopped" : `exited with code ${r.code}`, "deck");
       publish();
+      if (!asked && r.code !== 0) notify({ kind: "error", source: "npm", key: exitKey(id),
+        title: `${script} failed`, body: `Exited with code ${r.code} in ${folder(cwd)}` });
     })
     .catch((e) => {
+      const asked = run.status === "stopping";
       run.status = "ended";
       append(run, `could not start: ${String(e)}`, "deck");
       publish();
+      if (!asked) notify({ kind: "error", source: "npm", key: exitKey(id),
+        title: `${script} could not start`, body: `${String(e)} in ${folder(cwd)}` });
     });
   return id;
 }
@@ -182,10 +195,11 @@ export function clearLog(id: string) {
   publish();
 }
 
-/** Forget an ended run. */
+/** Forget an ended run, and its failure card with it: a restart forgets the run it replaced. */
 export function dismiss(id: string) {
   const run = runs.get(id);
   if (run && run.status !== "ended") return;
+  dismissNotification("npm", exitKey(id));
   runs.delete(id);
   publish();
 }
