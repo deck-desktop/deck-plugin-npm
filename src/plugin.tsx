@@ -16,7 +16,7 @@ import { configRead, fsList, fsRead, openExternal } from "../shim/bridge.js";
 import {
   termWrite, getLayout, useLayout, focusPane, paneLocation, switchWorkspace, type Layout,
 } from "../shim/terminals.js";
-import { ContextMenu, type MenuEntry } from "../shim/ui.js";
+import { ContextMenu, StatusItem, type MenuEntry } from "../shim/ui.js";
 import {
   parsePackage, packageManager, scriptRun, shouldDescend, ownerWorkspace, packageLabel,
   typedCommand, type Manager, type PaneProcs,
@@ -472,6 +472,9 @@ export function Panel() {
 
 // ---- the footer readout ---------------------------------------------------------------------------
 
+/** An icon button beside the readout, at StatusItem's height so the row lines up. */
+const footerBtn = "grid h-[22px] w-[22px] place-items-center rounded-[4px] text-text-secondary transition-colors hover:bg-white/[0.06] hover:text-text-primary";
+
 /**
  * What is running here, with stop and restart for it, from any module. A ▶ when nothing is.
  *
@@ -498,8 +501,9 @@ export function Status() {
     return hasPkgs ? (
       <ScriptPicker root={wsCwd} running={new Set()}
         onPick={(p, s) => { void store.start(p.dir, p.name, s, p.pm); }}>
-        <span className="grid h-6 w-6 place-items-center rounded text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary">
-          <Play size={12} />
+        {/* A span, not a StatusItem: the picker's own button is the clickable part. */}
+        <span className={footerBtn}>
+          <Play size={13} />
         </span>
       </ScriptPicker>
     ) : null;
@@ -511,22 +515,24 @@ export function Status() {
   const openDrawer = () => window.dispatchEvent(new CustomEvent("deck-footer-tab", { detail: "plugin:npm" }));
 
   return (
-    <div className="flex items-center gap-0.5">
-      <button onClick={openDrawer}
+    <div className="flex items-center">
+      <StatusItem
+        icon={<Package />}
+        color="#4ad08f"
+        label={name}
+        detail={total > 1 ? `+${total - 1}` : undefined}
         title={total > 1 ? `${total} scripts running — open the list` : `${name} — show its output`}
-        className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px] text-text-secondary hover:bg-white/10 hover:text-text-primary">
-        <span className="text-emerald-400">●</span>
-        {name}{total > 1 && <span className="text-text-muted">+{total - 1}</span>}
-      </button>
+        onClick={openDrawer}
+      />
       <button title="Restart"
         onClick={() => { if (run) void store.restart(run.id); else if (pane) paneRestart(pane); }}
-        className={iconBtn}>
-        <RotateCw size={12} />
+        className={footerBtn}>
+        <RotateCw size={13} />
       </button>
       <button title="Stop"
         onClick={() => { if (run) store.stop(run.id); else if (pane) paneStop(pane); }}
-        className={iconBtn + " hover:!text-red-400"}>
-        <Square size={10} />
+        className={footerBtn + " hover:!text-red-400"}>
+        <Square size={11} />
       </button>
     </div>
   );
