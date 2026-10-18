@@ -10,7 +10,7 @@
 //            terminal; the panel offers a jump to it rather than a second copy.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
-  Play, Square, RotateCw, X, Copy, Trash2, WrapText, Package, TerminalSquare, ExternalLink, Loader2,
+  Play, Square, RotateCw, X, Copy, Trash2, WrapText, Package, TerminalSquare, ExternalLink, Loader2, Search,
 } from "lucide-react";
 import { configRead, fsList, fsRead, openExternal } from "../shim/bridge.js";
 import {
@@ -285,7 +285,23 @@ const prefs: Partial<Prefs> = (() => {
   catch { return {}; }
 })();
 
-const iconBtn = "grid h-6 w-6 place-items-center rounded text-text-secondary hover:bg-white/10 hover:text-text-primary";
+/** The panel's toolbar buttons, the size of the Editor's own. */
+const iconBtn = "grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary";
+/** Stop and clear: red only under the pointer. */
+const dangerBtn = "grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-red-400";
+
+/** A run's state as a dot, in the tone the state reads in. */
+const dotColor = (r: store.Run) =>
+  r.status === "running" ? "rgb(var(--tone-green-400))"
+  : r.status === "stopping" ? "rgb(var(--tone-amber-400))"
+  : r.status === "ended" && r.code ? "rgb(var(--tone-red-400))"
+  : "var(--text-muted)";
+
+/** A run in the strip: raised like the open tab in a TabStrip with `chip` when it is the one shown. */
+const runChip = (on: boolean) =>
+  "flex h-7 flex-none items-center gap-1.5 rounded-md px-2 text-[12px] transition-colors " +
+  (on ? "text-text-primary" : "text-text-muted hover:bg-white/5 hover:text-text-primary");
+const runChipOn = { background: "var(--bg-elev)", boxShadow: "inset 0 0 0 1px var(--border-strong)" };
 
 // ---- the drawer panel, and the same thing as a pane -----------------------------------------------
 
@@ -345,16 +361,25 @@ export function Panel() {
 
   if (!runs.length && !panes.length) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-text-muted">
-        <Package size={28} className="opacity-40" />
-        <p className="text-sm">No script running.</p>
-        {hasPkgs ? picker(
-          <span className="flex items-center gap-1.5 rounded bg-white/10 px-3 py-1.5 text-xs text-text-primary hover:bg-white/15">
-            <Play size={12} /> Run a script
-          </span>,
-        ) : (
-          <p className="text-xs">No package.json with scripts in this workspace.</p>
-        )}
+      <div className="flex h-full items-center justify-center p-4">
+        <div className="flex max-w-sm items-start gap-2.5 rounded-lg border border-subtle bg-elev px-3 py-3 text-[12px] leading-relaxed text-text-muted">
+          <Package size={16} className="mt-0.5 shrink-0" />
+          <div className="flex flex-col items-start gap-2.5">
+            {hasPkgs ? (
+              <>
+                <span>No script running. Run one of this workspace's package.json scripts to see its output here.</span>
+                {picker(
+                  <span className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium text-white transition hover:brightness-110"
+                    style={{ background: "var(--accent)" }}>
+                    <Play size={12} /> Run a script
+                  </span>,
+                )}
+              </>
+            ) : (
+              <span>No script running, and no package.json with scripts in this workspace. Open a workspace with one to run its scripts from here.</span>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -362,15 +387,11 @@ export function Panel() {
   return (
     <div className="flex h-full flex-col">
       {/* The runs, and the controls for the selected one. */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-subtle px-2 py-1.5">
+      <div className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-subtle px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {runs.map((r) => (
           <button key={r.id} onClick={() => setSelected(r.id)}
-            className={`flex flex-none items-center gap-1.5 rounded px-2 py-1 text-[11px] ${
-              r.id === active?.id ? "bg-white/10 text-text-primary" : "text-text-muted hover:bg-white/5"}`}>
-            <span className={r.status === "running" ? "text-emerald-400"
-              : r.status === "ended" && r.code ? "text-red-400" : "text-text-muted"}>
-              {r.status === "running" ? "●" : r.status === "stopping" ? "◐" : "○"}
-            </span>
+            className={runChip(r.id === active?.id)} style={r.id === active?.id ? runChipOn : undefined}>
+            <span className="size-[7px] shrink-0 rounded-full" style={{ background: dotColor(r) }} />
             {runLabel(r)}
           </button>
         ))}
@@ -378,16 +399,16 @@ export function Panel() {
         {panes.map((p) => (
           <button key={p.paneId} onClick={() => jumpToPane(p.paneId)}
             title={`${typedCommand(p.pm, p.script)} — running in the terminal "${p.label}". Click to go to it.`}
-            className="flex flex-none items-center gap-1.5 rounded px-2 py-1 text-[11px] text-text-muted hover:bg-white/5 hover:text-text-primary">
-            <TerminalSquare size={11} className="text-emerald-400" />
+            className={runChip(false)}>
+            <TerminalSquare size={12} className="text-emerald-400" />
             {p.script}
-            <span className="text-text-muted">· {p.label}</span>
+            <span className="text-[11px] text-text-muted">· {p.label}</span>
           </button>
         ))}
         <div className="flex-1" />
         {active?.urls.map((u) => (
           <button key={u} onClick={() => void openExternal(u).catch((e) => console.warn("[npm] open url failed", e))} title={`Open ${u}`}
-            className="flex flex-none items-center gap-1 rounded px-1.5 py-1 font-mono text-[10.5px] text-sky-300 hover:bg-white/10">
+            className="flex h-6 flex-none items-center gap-1 rounded-md px-1.5 font-mono text-[10.5px] text-sky-300 transition-colors hover:bg-white/5">
             {u.replace(/^https?:\/\//, "").replace(/\/$/, "")}
             <ExternalLink size={10} />
           </button>
@@ -399,7 +420,7 @@ export function Panel() {
               <RotateCw size={12} />
             </button>
             <button onClick={() => store.stop(active.id)} title="Stop"
-              className={iconBtn + " hover:!text-red-400"}>
+              className={dangerBtn}>
               {active.status === "stopping" ? <Loader2 size={11} className="animate-spin" /> : <Square size={10} />}
             </button>
           </>
@@ -420,27 +441,31 @@ export function Panel() {
 
       {active ? (
         <>
-          <div className="flex items-center gap-1.5 border-b border-subtle px-2 py-1">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter output…"
-              spellCheck={false}
-              className="w-60 rounded border border-subtle bg-card px-2 py-0.5 font-mono text-[11px] text-text-primary outline-none placeholder:font-sans placeholder:text-text-muted focus:border-accent-soft" />
-            <span className="text-[10px] text-text-muted">
+          <div className="flex items-center gap-1.5 px-2 pb-1 pt-1.5">
+            {/* The filter, with its search icon inside the box. */}
+            <div className="flex h-7 w-60 items-center gap-1.5 rounded-lg border border-subtle bg-elev px-2 transition-colors focus-within:border-[var(--accent)]">
+              <Search size={12} className="shrink-0 text-text-muted" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter output…"
+                spellCheck={false}
+                className="min-w-0 flex-1 bg-transparent font-mono text-[11.5px] text-text-primary outline-none placeholder:font-sans placeholder:text-text-muted" />
+            </div>
+            <span className="text-[11px] text-text-muted">
               {shown.length}{shown.length !== lines.length && ` / ${lines.length}`} lines
             </span>
             <div className="ml-auto flex items-center gap-0.5">
-              <button onClick={() => setWrap((v) => !v)} title={wrap ? "Stop wrapping long lines" : "Wrap long lines"}
-                className="rounded p-1.5 text-text-muted hover:bg-white/5 hover:text-text-primary"
-                style={wrap ? { color: "var(--text-primary)" } : undefined}>
-                <WrapText size={12} />
+              <button onClick={() => setWrap((v) => !v)} title={wrap ? "Stop wrapping long lines" : "Wrap long lines"} aria-pressed={wrap}
+                className={"grid size-7 place-items-center rounded-lg transition-colors " + (wrap ? "text-text-primary" : "text-text-muted hover:bg-white/5 hover:text-text-primary")}
+                style={wrap ? { background: "var(--accent-soft)", boxShadow: "inset 0 0 0 1px var(--accent)" } : undefined}>
+                <WrapText size={13} />
               </button>
               <button onClick={() => void navigator.clipboard.writeText(shown.map((l) => l.text).join("\n")).catch(() => {})}
                 title="Copy what is shown"
-                className="rounded p-1.5 text-text-muted hover:bg-white/5 hover:text-text-primary">
-                <Copy size={12} />
+                className={iconBtn}>
+                <Copy size={13} />
               </button>
               <button onClick={() => store.clearLog(active.id)} title="Clear the output"
-                className="rounded p-1.5 text-text-muted hover:bg-white/5 hover:text-text-primary">
-                <Trash2 size={12} />
+                className={dangerBtn}>
+                <Trash2 size={13} />
               </button>
             </div>
           </div>
@@ -455,14 +480,14 @@ export function Panel() {
               </div>
             ))}
             {!shown.length && (
-              <div className="px-1 py-3 text-text-muted">
+              <div className="px-1 py-3 font-sans text-[12px] text-text-muted">
                 {lines.length ? "Nothing matches this filter." : "Waiting for output…"}
               </div>
             )}
           </div>
         </>
       ) : (
-        <div className="flex flex-1 items-center justify-center px-4 text-center text-xs text-text-muted">
+        <div className="flex flex-1 items-center justify-center px-4 text-center text-[12px] text-text-muted">
           Running in a terminal — its output is there. Click it above to go to it.
         </div>
       )}
@@ -474,6 +499,7 @@ export function Panel() {
 
 /** An icon button beside the readout, at StatusItem's height so the row lines up. */
 const footerBtn = "grid h-[22px] w-[22px] place-items-center rounded-[4px] text-text-secondary transition-colors hover:bg-white/[0.06] hover:text-text-primary";
+const footerStop = "grid h-[22px] w-[22px] place-items-center rounded-[4px] text-text-secondary transition-colors hover:bg-white/[0.06] hover:text-red-400";
 
 /**
  * What is running here, with stop and restart for it, from any module. A ▶ when nothing is.
@@ -518,7 +544,7 @@ export function Status() {
     <div className="flex items-center">
       <StatusItem
         icon={<Package />}
-        color="#4ad08f"
+        color="rgb(var(--tone-green-400))"
         label={name}
         detail={total > 1 ? `+${total - 1}` : undefined}
         title={total > 1 ? `${total} scripts running — open the list` : `${name} — show its output`}
@@ -531,7 +557,7 @@ export function Status() {
       </button>
       <button title="Stop"
         onClick={() => { if (run) store.stop(run.id); else if (pane) paneStop(pane); }}
-        className={footerBtn + " hover:!text-red-400"}>
+        className={footerStop}>
         <Square size={11} />
       </button>
     </div>
