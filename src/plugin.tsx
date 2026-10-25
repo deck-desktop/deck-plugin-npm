@@ -262,8 +262,9 @@ function ScriptPicker({ root, running, onPick, children, title = "Run a script" 
 const runningKeys = (runs: store.Run[]) =>
   new Set(runs.filter((r) => r.status !== "ended").map((r) => `${r.cwd}\0${r.script}`));
 
-const time = (ts: number) =>
-  new Date(ts).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+// One formatter for every log line: toLocaleTimeString with options builds a new one per call.
+const clock = new Intl.DateTimeFormat([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const time = (ts: number) => clock.format(ts);
 
 const LOG_COLOR: Record<store.LogLine["kind"], string> = {
   out: "text-text-secondary",
