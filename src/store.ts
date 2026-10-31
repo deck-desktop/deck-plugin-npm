@@ -4,7 +4,7 @@
 // module-level store and components subscribe with useSyncExternalStore — the same rule Deck's
 // own terminals follow. A dev server keeps running while you look at something else, and so must
 // its log.
-import { procStream, procKill, configWrite } from "../shim/bridge.js";
+import { procStream, procKill, configWrite, isWindows } from "../shim/bridge.js";
 import { listen } from "@tauri-apps/api/event";
 import { notify, dismissNotification } from "../shim/ui.js";
 import { runCommand, stripAnsi, localUrls, type Manager } from "./detect.js";
@@ -131,7 +131,7 @@ export async function start(cwd: string, pkg: string, script: string, pm: Manage
   append(run, `${pm} run ${script}`, "deck");
   publish();
 
-  const { program, args } = runCommand(pm, script);
+  const { program, args } = runCommand(pm, script, isWindows());
   // Not awaited: this resolves when the script EXITS, which for a dev server is the session.
   void procStream(id, program, args, cwd)
     .then((r) => {

@@ -58,8 +58,9 @@ export function packageManager(lockfilesUp: readonly string[][]): Manager {
  * Command cannot launch, and cmd also gives PATH resolution. `run` is passed for every manager
  * so a script named like a built-in command (`install`, `test` in yarn) still runs the script.
  */
-export function runCommand(pm: Manager, script: string): { program: string; args: string[] } {
-  return { program: "cmd", args: ["/C", pm, "run", script] };
+export function runCommand(pm: Manager, script: string, windows = true): { program: string; args: string[] } {
+  // Elsewhere the manager is a plain executable (or a symlink to its script), which starts as it is.
+  return windows ? { program: "cmd", args: ["/C", pm, "run", script] } : { program: pm, args: ["run", script] };
 }
 
 /** The same thing as a person would type it, for typing into a terminal. */
@@ -108,10 +109,11 @@ export function scriptRun(p: PaneProc): { pm: Manager; script: string } | null {
   const w = words(p.cmd);
   let pm: Manager | null = null;
   let rest: string[] = [];
-  if (name === "bun.exe") {
+  // bun.exe and node.exe on Windows; bun and node elsewhere.
+  if (name === "bun.exe" || name === "bun") {
     pm = "bun";
     rest = w.slice(1);
-  } else if (name === "node.exe") {
+  } else if (name === "node.exe" || name === "node") {
     const at = w.findIndex((x) => CLI.some(([re]) => re.test(x)));
     if (at < 0) return null;
     pm = CLI.find(([re]) => re.test(w[at]))![1];
