@@ -103,10 +103,10 @@ function scriptRun(p) {
   const w = words(p.cmd);
   let pm = null;
   let rest = [];
-  if (name === "bun.exe") {
+  if (name === "bun.exe" || name === "bun") {
     pm = "bun";
     rest = w.slice(1);
-  } else if (name === "node.exe") {
+  } else if (name === "node.exe" || name === "node") {
     const at = w.findIndex((x) => CLI.some(([re]) => re.test(x)));
     if (at < 0) return null;
     pm = CLI.find(([re]) => re.test(w[at]))[1];
