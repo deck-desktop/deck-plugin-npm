@@ -12,79 +12,17 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   Play, Square, RotateCw, X, Copy, Trash2, WrapText, Package, TerminalSquare, ExternalLink, Loader2, Search,
 } from "lucide-react";
-import { configRead, fsList, fsRead, openExternal } from "../shim/bridge.js";
+import { configRead, openExternal } from "../shim/bridge.js";
 import {
   termWrite, getLayout, useLayout, focusPane, paneLocation, switchWorkspace, type Layout,
 } from "../shim/terminals.js";
 import { ContextMenu, StatusItem, type MenuEntry } from "../shim/ui.js";
 import {
-  parsePackage, packageManager, scriptRun, shouldDescend, ownerWorkspace, packageLabel,
+  scriptRun, ownerWorkspace, packageLabel,
   typedCommand, type Manager, type PaneProcs,
 } from "./detect.js";
 import * as store from "./store.js";
-
-// ---- the packages in a workspace -----------------------------------------------------------------
-
-/** A package.json with scripts, and how to run them. */
-interface Pkg { dir: string; name: string; scripts: Record<string, string>; pm: Manager }
-
-/**
- * Every package with scripts in a workspace: its own folder and any nested under it — a
- * monorepo's apps/* and packages/*, or a frontend kept beside a backend.
- *
- * Breadth-first to a fixed depth, skipping node_modules and build output (see shouldDescend).
- * ponytail: depth 3 and a cap on folders visited bound the cost on a huge tree; a package deeper
- * than that is not offered, and the fix is raising MAX_DEPTH, not a smarter walk.
- *
- * Cached per workspace folder because `panelWhen` is synchronous and runs on every footer render.
- * The picker re-scans each time it opens, so a script added mid-session appears there.
- */
-const pkgCache = new Map<string, Pkg[]>();
-const MAX_DEPTH = 3;
-const MAX_DIRS = 400;
-
-async function scanPackages(root: string): Promise<Pkg[]> {
-  if (!root) return [];
-  // Every folder's file names, kept so a package can look UP for its workspace's lockfile.
-  const names = new Map<string, string[]>();
-  const parent = new Map<string, string>();
-  const found: Omit<Pkg, "pm">[] = [];
-  let level = [root];
-  let visited = 0;
-  for (let depth = 0; depth <= MAX_DEPTH && level.length && visited < MAX_DIRS; depth++) {
-    const next: string[] = [];
-    await Promise.all(level.map(async (dir) => {
-      visited++;
-      let entries: { name: string; path: string; dir: boolean }[] = [];
-      try { entries = await fsList(dir); } catch { return; }
-      names.set(dir, entries.filter((e) => !e.dir).map((e) => e.name));
-      if (entries.some((e) => !e.dir && e.name === "package.json")) {
-        try {
-          const p = parsePackage(await fsRead(`${dir}/package.json`));
-          if (p) found.push({ dir, ...p });
-        } catch { /* unreadable: not offered */ }
-      }
-      for (const e of entries) {
-        if (e.dir && shouldDescend(e.name)) { next.push(e.path); parent.set(e.path, dir); }
-      }
-    }));
-    level = next;
-  }
-  const pkgs = found.map((p) => {
-    const up: string[][] = [];
-    for (let d: string | undefined = p.dir; d; d = parent.get(d)) up.push(names.get(d) ?? []);
-    return { ...p, pm: packageManager(up) };
-  });
-  // The root first, then the rest by path, so the menu is in the same order every time.
-  pkgs.sort((a, b) => (a.dir === root ? -1 : b.dir === root ? 1 : a.dir.localeCompare(b.dir)));
-  pkgCache.set(root, pkgs);
-  return pkgs;
-}
-
-const packagesIn = (root: string) => {
-  const seen = pkgCache.get(root);
-  return seen ? Promise.resolve(seen) : scanPackages(root);
-};
+import { pkgCache, scanPackages, packagesIn, type Pkg } from "./packages.js";
 
 /** The active workspace's directory, read straight from the layout store. */
 function currentCwd(): string {
