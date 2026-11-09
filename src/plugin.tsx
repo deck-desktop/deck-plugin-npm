@@ -326,7 +326,9 @@ export function Panel() {
   return (
     <div className="flex h-full flex-col">
       {/* The runs, and the controls for the selected one. */}
-      <div className="flex h-9 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-subtle px-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-subtle px-1.5">
+        {/* Runs and addresses scroll; the buttons after them stay at the end. */}
+        <div className="flex h-full min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {runs.map((r) => (
           <button key={r.id} onClick={() => setSelected(r.id)}
             className={runChip(r.id === active?.id)} style={r.id === active?.id ? runChipOn : undefined}>
@@ -352,6 +354,7 @@ export function Panel() {
             <ExternalLink size={10} />
           </button>
         ))}
+        </div>
         {active && active.status !== "ended" && (
           <>
             <button onClick={() => void store.restart(active.id).then((id) => id && setSelected(id))}
