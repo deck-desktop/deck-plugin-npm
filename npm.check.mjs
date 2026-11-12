@@ -88,4 +88,12 @@ assert.equal(d.ownerWorkspace(wss, "D:/code/shopping"), null, "a shared prefix i
 assert.equal(d.packageLabel(String.raw`D:\code\shop`, String.raw`D:\code\shop\apps\web`, ""), "apps/web");
 assert.equal(d.packageLabel(String.raw`D:\code\shop`, String.raw`D:\code\shop\apps\web`, "@shop/web"), "@shop/web");
 
+// A project of several folders (Deck's multi-root projects): one key of every local folder, the main
+// one first; a run in any of them belongs to it; a package is labelled under its folder's name.
+assert.equal(d.projectRoot({ cwd: "D:/shop/app", folders: ["D:/shop/api", "vps:/srv/x"] }), "D:/shop/app|D:/shop/api");
+assert.equal(d.projectRoot({ cwd: "D:/shop/app" }), "D:/shop/app");
+assert.equal(d.ownerWorkspace([{ id: "a", cwd: "D:/shop/app", folders: ["D:/shop/api"] }], "d:/shop/api/web"), "a");
+assert.equal(d.packageLabel("D:/shop/app|D:/shop/api", "D:/shop/api/web", ""), "api/web");
+assert.equal(d.packageLabel("D:/shop/app|D:/shop/api", "D:/shop/api", ""), "api");
+
 console.log("npm.check.mjs: all assertions passed");

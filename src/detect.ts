@@ -164,12 +164,13 @@ export function shouldDescend(name: string): boolean {
  * the same function; plugins cannot import from one another, so each carries its own.
  */
 export function ownerWorkspace(
-  workspaces: readonly { id: string; cwd: string }[], dir: string,
+  workspaces: readonly { id: string; cwd: string; folders?: string[] }[], dir: string,
 ): string | null {
   const f = norm(dir);
   let best: { id: string; len: number } | null = null;
-  for (const w of workspaces) {
-    const c = norm(w.cwd);
+  // Any of a project's folders (Deck's multi-root projects), the deepest winning.
+  for (const w of workspaces) for (const folder of [w.cwd, ...(w.folders ?? [])]) {
+    const c = norm(folder);
     if (!c || (f !== c && !f.startsWith(c + "/"))) continue;
     if (!best || c.length > best.len) best = { id: w.id, len: c.length };
   }
@@ -179,10 +180,28 @@ export function ownerWorkspace(
 /** A package's label in the picker: its name, else its path under the workspace. */
 export function packageLabel(root: string, dir: string, name: string): string {
   if (name) return name;
+  // Several folders ("a|b", projectRoot): the one holding it, named first.
+  if (root.includes("|")) {
+    const holder = root.split("|").filter((f) => norm(dir) === norm(f) || norm(dir).startsWith(norm(f) + "/")).sort((a, b) => b.length - a.length)[0];
+    if (!holder) return dir;
+    const inner = packageLabel(holder, dir, "");
+    const top = holder.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop() || holder;
+    return norm(dir) === norm(holder) ? top : `${top}/${inner}`;
+  }
   const r = norm(root);
   const d = dir.replace(/\\/g, "/").replace(/\/+$/, "");
   if (norm(d) === r) return d.split("/").pop() || d;
   return norm(d).startsWith(r + "/") ? d.slice(r.length + 1) : d;
+}
+
+/**
+ * What Scripts scans for a project: its folder, or with several (Deck's multi-root projects) all of
+ * them joined with "|", the main one first. Only folders on this PC: a script runs here.
+ */
+export function projectRoot(w: { cwd: string; folders?: string[] } | undefined): string {
+  if (!w) return "";
+  const local = (w.folders ?? []).filter((f) => f && !/^[A-Za-z0-9._@-]{2,}(\+sudo)?:\//.test(f));
+  return [w.cwd, ...local].join("|");
 }
 
 /** Terminal colour codes, which a tool still emits when it decides colour is wanted anyway. */
