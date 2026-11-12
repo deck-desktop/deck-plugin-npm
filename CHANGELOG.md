@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 (2026-11-12)
+
+- In a project with several folders (Deck 1.17.3), Scripts lists the packages of every folder, named by the folder.
+
 ## 1.2.1 (2026-11-09)
 
 - With many dev-server addresses in the run bar, Restart, Stop and Run stay at its end instead of
