@@ -18,7 +18,7 @@ import {
 } from "../shim/terminals.js";
 import { ContextMenu, StatusItem, type MenuEntry } from "../shim/ui.js";
 import {
-  scriptRun, ownerWorkspace, packageLabel,
+  scriptRun, ownerWorkspace, packageLabel, projectRoot,
   typedCommand, type Manager, type PaneProcs,
 } from "./detect.js";
 import * as store from "./store.js";
@@ -27,7 +27,7 @@ import { pkgCache, scanPackages, packagesIn, type Pkg } from "./packages.js";
 /** The active workspace's directory, read straight from the layout store. */
 function currentCwd(): string {
   const l = getLayout();
-  return l?.workspaces.find((w) => w.id === l.activeWs)?.cwd ?? "";
+  return projectRoot(l?.workspaces.find((w) => w.id === l.activeWs)); // every folder of it (detect.ts)
 }
 
 // ---- runs, of both kinds, for the active workspace -------------------------------------------
@@ -248,7 +248,7 @@ export function Panel() {
   const layout = useLayout();
   const runs = runsHere(useRuns(), layout);
   const panes = usePaneRuns().filter((r) => r.wsId === layout?.activeWs);
-  const wsCwd = layout?.workspaces.find((w) => w.id === layout.activeWs)?.cwd ?? "";
+  const wsCwd = projectRoot(layout?.workspaces.find((w) => w.id === layout.activeWs)); // every folder of it
   const [selected, setSelected] = useState<string | null>(prefs.selected ?? null);
   const [q, setQ] = useState(prefs.q ?? "");
   const [wrap, setWrap] = useState(prefs.wrap ?? true);
@@ -453,7 +453,7 @@ export function Status() {
   const layout = useLayout();
   const runs = runsHere(useRuns(), layout).filter((r) => r.status !== "ended");
   const panes = usePaneRuns().filter((r) => r.wsId === layout?.activeWs);
-  const wsCwd = layout?.workspaces.find((w) => w.id === layout.activeWs)?.cwd ?? "";
+  const wsCwd = projectRoot(layout?.workspaces.find((w) => w.id === layout.activeWs)); // every folder of it
   const [hasPkgs, setHasPkgs] = useState(false);
 
   // Asked even while something runs: the answer also decides whether the drawer tab shows, and

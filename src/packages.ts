@@ -25,6 +25,12 @@ const MAX_DIRS = 400;
 
 export async function scanPackages(root: string): Promise<Pkg[]> {
   if (!root) return [];
+  // A project of several folders (projectRoot, "a|b"): each scanned, in order, under one key.
+  if (root.includes("|")) {
+    const all = (await Promise.all(root.split("|").filter(Boolean).map(scanPackages))).flat();
+    pkgCache.set(root, all);
+    return all;
+  }
   // Every folder's file names, kept so a package can look UP for its workspace's lockfile.
   const names = new Map<string, string[]>();
   const parent = new Map<string, string>();
