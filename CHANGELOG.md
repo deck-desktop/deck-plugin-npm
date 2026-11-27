@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 (2026-11-27)
+
+- A script's run shows under its project in Deck's workspace sidebar, with its address while it
+  serves. A click opens its log; a right-click opens it in the browser, restarts or stops it, or
+  runs it again once it has ended. Needs Deck 1.20.0.
+- Only a server's own address shows as a chip, a long log opens fast, and the run bar's icons
+  match the Flutter plugin's sizes.
+
 ## 1.3.0 (2026-11-12)
 
 - In a project with several folders (Deck 1.17.3), Scripts lists the packages of every folder, named by the folder.
