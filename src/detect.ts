@@ -218,6 +218,8 @@ export function localUrls(line: string): string[] {
   const out: string[] = [];
   for (const m of stripAnsi(line).matchAll(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])(?::\d+)?(?:\/[^\s'")\]]*)?/gi)) {
     const url = m[0].replace(/\/\/0\.0\.0\.0/, "//localhost").replace(/[.,;:]+$/, "");
+    // A server's own address, not every request a log prints ("GET http://127.0.0.1:8000/api/…").
+    if (/^https?:\/\/[^/]+\/./.test(url)) continue;
     if (!out.includes(url)) out.push(url);
   }
   return out;

@@ -74,6 +74,8 @@ assert.ok(d.shouldDescend("packages") && d.shouldDescend("apps"));
 // ---- addresses in a dev server's output --------------------------------------------------------
 assert.deepEqual(d.localUrls("  ➜  Local:   http://localhost:5173/"), ["http://localhost:5173/"]);
 assert.deepEqual(d.localUrls("  ➜  Network: http://192.168.1.4:5173/"), [], "a LAN address is not offered");
+assert.deepEqual(d.localUrls("GET http://127.0.0.1:8000/api/v1/languages 200"), [], "a request a log prints is not the server's address");
+assert.deepEqual(d.localUrls("ready on http://localhost:3000/"), ["http://localhost:3000/"], "its root, with a slash, still is");
 assert.deepEqual(d.localUrls("listening on http://0.0.0.0:3000."), ["http://localhost:3000"],
   "0.0.0.0 cannot be opened, and trailing punctuation is not part of it");
 assert.deepEqual(d.localUrls("\u001b[36mhttp://127.0.0.1:8000\u001b[39m"), ["http://127.0.0.1:8000"],

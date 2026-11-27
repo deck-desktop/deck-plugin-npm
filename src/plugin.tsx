@@ -8,7 +8,7 @@
 //   pane   — `npm run dev` typed in a terminal. Recognised from Deck's process sweep and driven
 //            by keystrokes (Ctrl+C), since that is all a terminal takes. Its output stays in the
 //            terminal; the panel offers a jump to it rather than a second copy.
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Play, Square, RotateCw, X, Copy, Trash2, WrapText, Package, TerminalSquare, ExternalLink, Loader2, Search,
 } from "lucide-react";
@@ -224,10 +224,25 @@ const prefs: Partial<Prefs> = (() => {
   catch { return {}; }
 })();
 
-/** The panel's toolbar buttons, the size of the Editor's own. */
-const iconBtn = "grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary";
+/** The panel's toolbar buttons, the size of the Editor's own (and the Flutter plugin's). */
+const iconBtn = "grid size-7 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary";
 /** Stop and clear: red only under the pointer. */
-const dangerBtn = "grid size-7 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-red-400";
+const dangerBtn = "grid size-7 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-red-400";
+
+/**
+ * One log line. Memoised, so a new line (a publish every 100ms while a server logs) draws only
+ * itself, not the thousands before it; and `content-visibility`, so the browser lays out and paints
+ * only the lines on screen. Opening a long log was slow from both.
+ */
+const LogRow = memo(function LogRow({ line, wrap }: { line: store.LogLine; wrap: boolean }) {
+  return (
+    <div className={`flex gap-2 px-1 hover:bg-white/5 ${wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"}`}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 16.5px" }}>
+      <span className="shrink-0 text-text-muted">{time(line.ts)}</span>
+      <span className={`min-w-0 flex-1 ${LOG_COLOR[line.kind]}`}>{line.text}</span>
+    </div>
+  );
+});
 
 /** A run's state as a dot, in the tone the state reads in. */
 const dotColor = (r: store.Run) =>
@@ -268,7 +283,9 @@ export function Panel() {
   const active = runs.find((r) => r.id === selected) ?? runs[0] ?? null;
   const lines = active?.log ?? [];
   const needle = q.trim().toLowerCase();
-  const shown = needle ? lines.filter((l) => l.text.toLowerCase().includes(needle)) : lines;
+  // The log is appended to in place (store.ts), so its newest line says when it changed; redone only then.
+  const newest = lines.length ? lines[lines.length - 1].id : 0;
+  const shown = useMemo(() => (needle ? lines.filter((l) => l.text.toLowerCase().includes(needle)) : lines), [lines, newest, needle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Follow the tail only when already at the bottom, so reading back is not yanked away.
   const logRef = useRef<HTMLDivElement>(null);
@@ -280,7 +297,7 @@ export function Panel() {
   useEffect(() => {
     const el = logRef.current;
     if (el && atBottom.current) el.scrollTop = el.scrollHeight;
-  }, [shown.length, active?.id]);
+  }, [shown.length, newest, active?.id]);
 
   // Ctrl+C on a selection: WebView2 has no application menu, so the native accelerator never fires.
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -359,11 +376,11 @@ export function Panel() {
           <>
             <button onClick={() => void store.restart(active.id).then((id) => id && setSelected(id))}
               title="Restart" className={iconBtn}>
-              <RotateCw size={12} />
+              <RotateCw size={14} />
             </button>
             <button onClick={() => store.stop(active.id)} title="Stop"
               className={dangerBtn}>
-              {active.status === "stopping" ? <Loader2 size={11} className="animate-spin" /> : <Square size={10} />}
+              {active.status === "stopping" ? <Loader2 size={12} className="animate-spin" /> : <Square size={12} />}
             </button>
           </>
         )}
@@ -371,14 +388,14 @@ export function Panel() {
           <>
             <button onClick={() => void store.restart(active.id).then((id) => id && setSelected(id))}
               title={`Run ${active.script} again`} className={iconBtn}>
-              <RotateCw size={12} />
+              <RotateCw size={14} />
             </button>
             <button onClick={() => store.dismiss(active.id)} title="Close this run" className={iconBtn}>
-              <X size={12} />
+              <X size={14} />
             </button>
           </>
         )}
-        {hasPkgs && picker(<span className={iconBtn}><Play size={12} /></span>)}
+        {hasPkgs && picker(<span className={iconBtn}><Play size={14} /></span>)}
       </div>
 
       {active ? (
@@ -414,13 +431,7 @@ export function Panel() {
           <div ref={logRef} onScroll={onScroll} tabIndex={0} onKeyDown={onKeyDown}
             className={`scroll-thin flex-1 overflow-y-auto px-2 py-1 font-mono text-[11px] leading-[1.5] outline-none ${
               wrap ? "" : "overflow-x-auto"}`}>
-            {shown.map((l) => (
-              <div key={l.id}
-                className={`flex gap-2 px-1 hover:bg-white/5 ${wrap ? "whitespace-pre-wrap break-words" : "whitespace-pre"}`}>
-                <span className="shrink-0 text-text-muted">{time(l.ts)}</span>
-                <span className={`min-w-0 flex-1 ${LOG_COLOR[l.kind]}`}>{l.text}</span>
-              </div>
-            ))}
+            {shown.map((l) => <LogRow key={l.id} line={l} wrap={wrap} />)}
             {!shown.length && (
               <div className="px-1 py-3 font-sans text-[12px] text-text-muted">
                 {lines.length ? "Nothing matches this filter." : "Waiting for output…"}
