@@ -22,6 +22,7 @@ import {
   typedCommand, type Manager, type PaneProcs,
 } from "./detect.js";
 import * as store from "./store.js";
+import { SELECT_RUN, disposeSidebar } from "./sidebar.js";
 import { pkgCache, scanPackages, packagesIn, type Pkg } from "./packages.js";
 
 /** The active workspace's directory, read straight from the layout store. */
@@ -265,6 +266,8 @@ export function Panel() {
   const panes = usePaneRuns().filter((r) => r.wsId === layout?.activeWs);
   const wsCwd = projectRoot(layout?.workspaces.find((w) => w.id === layout.activeWs)); // every folder of it
   const [selected, setSelected] = useState<string | null>(prefs.selected ?? null);
+  // A run picked in Deck's sidebar (sidebar.ts).
+  useEffect(() => { const pick = (e: Event) => setSelected((e as CustomEvent<string>).detail); window.addEventListener(SELECT_RUN, pick); return () => window.removeEventListener(SELECT_RUN, pick); }, []);
   const [q, setQ] = useState(prefs.q ?? "");
   const [wrap, setWrap] = useState(prefs.wrap ?? true);
   const [hasPkgs, setHasPkgs] = useState(false);
@@ -557,4 +560,4 @@ export function commands() {
 export const PaneView = Panel;
 
 /** Called by Deck before a reload re-imports this plugin, so the old copy stops taking MCP commands. */
-export const dispose = store.dispose;
+export const dispose = () => { disposeSidebar(); store.dispose(); };
